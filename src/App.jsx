@@ -162,10 +162,10 @@ export default function App() {
 
       if (criteria.pageSource && criteria.pageSource.length > 100) {
         // Extract URLs directly from pasted page source
-        const urlRegex = /\/ilan\/satilik-[\w-]+-\d{7,}/g;
+        const urlRegex = /\/ilan\/[a-zA-Z0-9\-,\.]+\/detay/g;
         const matches = criteria.pageSource.match(urlRegex) || [];
         const unique = [...new Set(matches)].map(u => ({
-          url: 'https://www.sahibinden.com' + u,
+          url: 'https://www.sahibinden.com' + u.replace('/detay', ''),
           title: ''
         }));
         if (!unique.length) throw new Error('Yapıştırdığınız içerikte sahibinden.com ilan URL\'si bulunamadı. Ctrl+U ile kaynak kodunu kopyaladığınızdan emin olun.');
@@ -232,7 +232,7 @@ export default function App() {
               placeholder={'1) sahibinden.com/satilik-bina/istanbul adresini açın\n2) Filtreleyin (fiyat, alan vb.)\n3) Klavyeden Ctrl+U basın (sayfa kaynağı açılır)\n4) Ctrl+A ile tümünü seçin\n5) Ctrl+C ile kopyalayın\n6) Buraya Ctrl+V ile yapıştırın'}
               rows={5} style={{ width: '100%', fontFamily: 'monospace', fontSize: 11 }} />
             <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
-              💡 Kaynak kodundan ilan URL'leri otomatik çıkarılır — {criteria.pageSource ? (criteria.pageSource.match(/\/ilan\/satilik-[\w-]+-\d{7,}/g) || []).length + ' ilan URL\'i tespit edildi' : 'henüz yapıştırılmadı'}
+              💡 Kaynak kodundan ilan URL'leri otomatik çıkarılır — {criteria.pageSource ? (criteria.pageSource.match(/\/ilan\/[a-zA-Z0-9\-,\.]+\/detay/g) || []).length + ' ilan URL\'i tespit edildi' : 'henüz yapıştırılmadı'}
             </div>
           </div>
           <div><label style={S.label}>Min Fiyat (₺)</label><input type="number" value={criteria.minPrice} onChange={e => set('minPrice', e.target.value)} placeholder="5000000" style={{ width: '100%' }} /></div>
