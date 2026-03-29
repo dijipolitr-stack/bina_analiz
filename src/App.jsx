@@ -133,7 +133,7 @@ async function callClaude(messages, useWebSearch) {
 const ILAN_TIPLERI = ['Tümü', 'işyeri', 'ofis', 'mağaza', 'plaza', 'depo', 'arsa üzeri bina'];
 
 export default function App() {
-  const [criteria, setCriteria] = useState({ location: '', minPrice: '', maxPrice: '', type: 'Tümü', minSqm: '', maxSqm: '', count: '5' });
+  const [criteria, setCriteria] = useState({ location: '', minPrice: '', maxPrice: '', type: 'Tümü', minSqm: '', maxSqm: '', count: '5', filterUrl: '' });
   const [properties, setProperties] = useState([]);
   const [steps, setSteps] = useState([]);
   const [running, setRunning] = useState(false);
@@ -156,25 +156,23 @@ export default function App() {
     if (!criteria.location.trim()) { setError('Lütfen konum girin.'); return; }
     setError(''); setRunning(true); setSteps([]); setProperties([]);
     try {
-      addStep('Sahibinden.com arama sayfasi olusturuluyor...');
-      const loc = criteria.location.toLowerCase()
-        .replace(/\s*,\s*/g, '-').replace(/\s+/g, '-')
-        .replace(/[çÇ]/g, 'c').replace(/[ğĞ]/g, 'g').replace(/[ıİ]/g, 'i')
-        .replace(/[öÖ]/g, 'o').replace(/[şŞ]/g, 's').replace(/[üÜ]/g, 'u');
-      const sahibindenUrl = 'https://www.sahibinden.com/satilik-isyeri/' + loc +
-        (criteria.minPrice ? '?price_min=' + criteria.minPrice : '') +
-        (criteria.maxPrice ? (criteria.minPrice ? '&' : '?') + 'price_max=' + criteria.maxPrice : '');
+      addStep('Google\'da sahibinden.com ilanlari aranıyor...');
+      const binaType2 = criteria.type === 'T\u00FCm\u00FC' ? 'ticari bina' : criteria.type;
 
-      addStep('Sayfa okunuyor: ' + sahibindenUrl);
-      const fetchPrompt = 'Su sahibinden.com sayfasini ac ve tum satilik ticari bina ilanlarini listele: ' + sahibindenUrl + '. Sayfadaki her ilanin URL si https://www.sahibinden.com/ilan/... formatinda olacak. Sadece JSON don: {"listings":[{"url":"https://www.sahibinden.com/ilan/satilik-isyeri-xxx","title":"baslik","priceHint":0}]}. En az ' + criteria.count + ' ilan bul.';
+      let fetchPrompt;
+      if (criteria.filterUrl && criteria.filterUrl.includes('sahibinden.com')) {
+        fetchPrompt = 'Su sahibinden.com filtre URL sindeki ilanlara benzer ilanları Google da bul: ' + criteria.filterUrl + '. Google da ara: site:sahibinden.com/ilan/satilik ' + criteria.location + ' ' + binaType2 + '. Sadece https://www.sahibinden.com/ilan/satilik ile baslayan URL ler ver. JSON: {"listings":[{"url":"https://www.sahibinden.com/ilan/satilik-bina-xxx-12345678","title":"baslik"}]}. En az ' + criteria.count + ' ilan.';
+      } else {
+        fetchPrompt = 'Google da ara: site:sahibinden.com/ilan/satilik-bina ' + criteria.location + (criteria.minPrice ? ' ' + Math.round(criteria.minPrice/1000000) + ' milyon TL' : '') + '. Sadece https://www.sahibinden.com/ilan/satilik ile baslayan URL ler ver. JSON: {"listings":[{"url":"https://www.sahibinden.com/ilan/satilik-bina-xxx-12345678","title":"baslik"}]}. En az ' + criteria.count + ' ilan.';
+      }
 
       const searchResult = await callClaude([{ role: 'user', content: fetchPrompt }], true);
-      addStep('Yanit: ' + searchResult.substring(0, 150) + '...');
+      addStep('Yanit: ' + searchResult.substring(0, 120) + '...');
       const searchJson = searchResult.match(/\{[\s\S]*\}/);
-      if (!searchJson) throw new Error('JSON bulunamadi: ' + searchResult.substring(0, 300));
+      if (!searchJson) throw new Error('URL alinamadi: ' + searchResult.substring(0, 200));
       const parsedSearch = JSON.parse(searchJson[0]);
       const listings = parsedSearch.listings || parsedSearch.ilanlar || parsedSearch.results || [];
-      if (!listings.length) throw new Error('Liste bos: ' + JSON.stringify(parsedSearch).substring(0, 200));
+      if (!listings.length) throw new Error('Ilan bulunamadi. Filtre URL ekleyerek tekrar deneyin.');
 
       finishLastStep('done');
       addStep(`${listings.length} ilan bulundu. Detaylar okunuyor…`);
@@ -225,6 +223,11 @@ export default function App() {
           <div style={{ gridColumn: '1 / -1' }}>
             <label style={S.label}>Konum*</label>
             <input value={criteria.location} onChange={e => set('location', e.target.value)} placeholder="Örn: Kadıköy, İstanbul" style={{ width: '100%' }} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={S.label}>Sahibinden Filtre URL (opsiyonel ama önerilir)</label>
+            <input value={criteria.filterUrl} onChange={e => set('filterUrl', e.target.value)} placeholder="https://www.sahibinden.com/satilik-bina/istanbul" style={{ width: '100%' }} />
+            <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>sahibinden.com açın, filtreleyin, adres çubuğundaki URL'yi buraya yapıştırın</div>
           </div>
           <div><label style={S.label}>Min Fiyat (₺)</label><input type="number" value={criteria.minPrice} onChange={e => set('minPrice', e.target.value)} placeholder="5000000" style={{ width: '100%' }} /></div>
           <div><label style={S.label}>Max Fiyat (₺)</label><input type="number" value={criteria.maxPrice} onChange={e => set('maxPrice', e.target.value)} placeholder="50000000" style={{ width: '100%' }} /></div>
