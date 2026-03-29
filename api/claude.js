@@ -24,6 +24,8 @@ export default async function handler(req) {
   }
 
   const body = await req.text();
+  const parsed = JSON.parse(body);
+  const hasWebSearch = JSON.stringify(parsed.tools || []).includes('web_search');
 
   const upstream = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -31,6 +33,7 @@ export default async function handler(req) {
       'Content-Type': 'application/json',
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
+      ...(hasWebSearch ? { 'anthropic-beta': 'web-search-2025-03-05' } : {}),
     },
     body,
   });
