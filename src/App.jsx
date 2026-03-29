@@ -161,10 +161,12 @@ export default function App() {
       const searchPrompt = 'sahibinden.com sitesinde su kriterlere uyan satilik ticari bina ilanlarini bul: Konum: ' + criteria.location + ', Tip: ' + binaType + (criteria.minPrice ? ', Min fiyat: ' + criteria.minPrice + ' TL' : '') + (criteria.maxPrice ? ', Max fiyat: ' + criteria.maxPrice + ' TL' : '') + '. Web aramasi yap: "sahibinden satilik ' + binaType + ' ' + criteria.location + '". Gercek sahibinden.com ilan URL lerini bul. Sadece JSON don, baska hicbir sey yazma: {"listings":[{"url":"https://www.sahibinden.com/ilan/satilik-xxx","title":"baslik"}]}. En az ' + criteria.count + ' ilan bul.';
 
       const searchResult = await callClaude([{ role: 'user', content: searchPrompt }], true);
+      addStep('Ham yanit: ' + searchResult.substring(0, 200));
       const searchJson = searchResult.match(/\{[\s\S]*\}/);
-      if (!searchJson) throw new Error('İlan listesi bulunamadı.');
-      const { listings } = JSON.parse(searchJson[0]);
-      if (!listings?.length) throw new Error('Kriterlere uygun ilan bulunamadı.');
+      if (!searchJson) throw new Error('JSON yok. Yanit: ' + searchResult.substring(0, 300));
+      const parsedSearch = JSON.parse(searchJson[0]);
+      const listings = parsedSearch.listings || parsedSearch.ilanlar || parsedSearch.results || [];
+      if (!listings.length) throw new Error('Bos liste. JSON: ' + JSON.stringify(parsedSearch).substring(0, 200));
 
       finishLastStep('done');
       addStep(`${listings.length} ilan bulundu. Detaylar okunuyor…`);
