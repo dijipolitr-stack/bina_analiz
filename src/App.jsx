@@ -157,26 +157,8 @@ export default function App() {
     setError(''); setRunning(true); setSteps([]); setProperties([]);
     try {
       addStep(`Sahibinden.com'da "${criteria.location}" ticari satılık bina aranıyor…`);
-      const searchPrompt = `sahibinden.com web sitesinde "${criteria.location}" bölgesinde satılık ticari bina ilanlarını ara. 
-Arama yaparken "sahibinden.com satılık ${criteria.type === 'Tümü' ? 'ticari bina' : criteria.type} ${criteria.location}" gibi terimler kullan.
-${criteria.minPrice ? `Minimum fiyat ${criteria.minPrice} TL.` : ''}
-${criteria.maxPrice ? `Maximum fiyat ${criteria.maxPrice} TL.` : ''}
-Bulduğun gerçek sahibinden.com ilan URL'lerini listele.
-SADECE JSON formatında yanıt ver, başka hiçbir şey yazma:
-{"listings":[{"url":"https://www.sahibinden.com/ilan/satilik-...","title":"ilan başlığı"}]}
-En az ${criteria.count} ilan bul.`;
-
-Arama Kriterleri:
-- Konum: ${criteria.location}
-- Bina Tipi: ${criteria.type === 'Tümü' ? 'ticari bina (işyeri, ofis, plaza, mağaza, depo)' : criteria.type}
-${criteria.minPrice ? `- Min Fiyat: ${criteria.minPrice} TL` : ''}
-${criteria.maxPrice ? `- Max Fiyat: ${criteria.maxPrice} TL` : ''}
-${criteria.minSqm ? `- Min Alan: ${criteria.minSqm} m²` : ''}
-${criteria.maxSqm ? `- Max Alan: ${criteria.maxSqm} m²` : ''}
-- İstenen ilan sayısı: ${criteria.count}
-
-SADECE JSON:
-{"listings":[{"url":"https://www.sahibinden.com/ilan/...","title":"başlık"}]}`;
+      const binaType = criteria.type === 'Tümü' ? 'ticari bina' : criteria.type;
+      const searchPrompt = 'sahibinden.com sitesinde su kriterlere uyan satilik ticari bina ilanlarini bul: Konum: ' + criteria.location + ', Tip: ' + binaType + (criteria.minPrice ? ', Min fiyat: ' + criteria.minPrice + ' TL' : '') + (criteria.maxPrice ? ', Max fiyat: ' + criteria.maxPrice + ' TL' : '') + '. Web aramasi yap: "sahibinden satilik ' + binaType + ' ' + criteria.location + '". Gercek sahibinden.com ilan URL lerini bul. Sadece JSON don, baska hicbir sey yazma: {"listings":[{"url":"https://www.sahibinden.com/ilan/satilik-xxx","title":"baslik"}]}. En az ' + criteria.count + ' ilan bul.';
 
       const searchResult = await callClaude([{ role: 'user', content: searchPrompt }], true);
       const searchJson = searchResult.match(/\{[\s\S]*\}/);
