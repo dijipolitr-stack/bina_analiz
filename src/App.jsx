@@ -181,23 +181,67 @@ export default function App() {
 
       for (let i = 0; i < Math.min(listings.length, Number(criteria.count)); i++) {
         const listing = listings[i];
-        addStep(`(${i + 1}/${listings.length}) ${(listing.title || listing.url || '').substring(0, 55)}…`);
-        try {
-          const detailText = await callClaude([{ role: 'user', content: `Şu sahibinden.com ilanına git ve tüm bilgileri çıkar: ${listing.url}\nSADECE JSON:\n{"title":"","salePrice":0,"district":"","location":"","type":"","buildYear":null,"unitCount":null,"sqm":null,"extraFeatures":[]}` }], true);
-          const dj = detailText.match(/\{[\s\S]*\}/);
-          if (!dj) { finishLastStep('error'); addStep('HATA: ' + detailText.substring(0,150), 'error'); continue; }
-          const detail = JSON.parse(dj[0]);
-          if (!detail.salePrice || detail.salePrice < 10000) { finishLastStep('error'); addStep('HATA fiyat: ' + JSON.stringify(detail).substring(0,150), 'error'); continue; }
+        addStep('(' + (i+1) + '/' + listings.length + ') ' + (listing.url || '').substring(0, 55) + '...');
 
-          const buildingAge = detail.buildYear ? new Date().getFullYear() - detail.buildYear : null;
-          const analysisText = await callClaude([{ role: 'user', content: `Sen bir Türk gayrimenkul yatırım analistsin.\nBina: ${detail.type} · ${detail.district}${detail.location ? ', ' + detail.location : ''} · ${new Intl.NumberFormat('tr-TR').format(detail.salePrice)} TL · Yapı: ${detail.buildYear || '?'}${buildingAge ? ` (${buildingAge} yaş)` : ''} · Bölüm: ${detail.unitCount || '?'} · Alan: ${detail.sqm ? detail.sqm + ' m²' : '?'}\nSADECE JSON:\n{"estimatedMonthlyRent":0,"rentRangeMin":0,"rentRangeMax":0,"grossYield":0,"amortizationMonths":0,"score":0,"riskLevel":"","recommendation":"","buildingAgeRisk":"","unitCountAdvantage":"","summary":""}` }]);
+        // URL'den konum bilgisini çıkar
+        const urlParts = (listing.url || '').replace('https://www.sahibinden.com/ilan/', '').split('-');
+        const ilceGuess = listing.title || urlParts.slice(3, 6).join(' ');
+
+        // Kaynak koddan bu ilana ait fiyat bilgisini çıkarmayı dene
+        const ilanId = (listing.url || '').match(/(\d{8,})/)?.[1] || '';
+        const srcSlice = ilanId ? criteria.pageSource.substring(
+          Math.max(0, criteria.pageSource.indexOf(ilanId) - 500),
+          criteria.pageSource.indexOf(ilanId) + 1000
+        ) : '';
+        const priceMatch = srcSlice.match(/"price"[^\d]*(\d{4,})/);
+        const priceFromSrc = priceMatch ? parseInt(priceMatch[1]) : 0;
+
+        try {
+          // Sadece analiz yap - web search kullanma, token tasarrufu için
+          const analysisPrompt = 'Sen Turk gayrimenkul yatirim analistsin. ' +
+            'Su sahibinden.com ilanini analiz et: ' + listing.url + '. ' +
+            (priceFromSrc > 10000 ? 'Satis fiyati: ' + priceFromSrc + ' TL. ' : '') +
+            'Konum ipucu URL den: ' + ilceGuess + '. ' +
+            'Istanbul piyasasini iyi biliyorsun. URL deki konum ve bina tipini kullan. ' +
+            'SADECE JSON, baska hicbir sey yazma: ' +
+            '{"title":"kisa baslik","salePrice":0,"district":"ilce","location":"mahalle","type":"bina tipi",' +
+            '"buildYear":null,"unitCount":null,"sqm":null,' +
+            '"estimatedMonthlyRent":0,"rentRangeMin":0,"rentRangeMax":0,' +
+            '"grossYield":0,"amortizationMonths":0,"score":0,' +
+            '"riskLevel":"orta","recommendation":"bekle",' +
+            '"buildingAgeRisk":"","unitCountAdvantage":"",' +
+            '"summary":"3 cumle yatirim degerlendirmesi"}';
+
+          const analysisText = await callClaude([{ role: 'user', content: analysisPrompt }]);
           const aj = analysisText.match(/\{[\s\S]*\}/);
-          const analysis = aj ? JSON.parse(aj[0]) : null;
+          if (!aj) { finishLastStep('error'); continue; }
+          const result = JSON.parse(aj[0]);
+
+          const detail = {
+            title: result.title, salePrice: result.salePrice,
+            district: result.district, location: result.location,
+            type: result.type, buildYear: result.buildYear,
+            unitCount: result.unitCount, sqm: result.sqm
+          };
+          const analysis = {
+            estimatedMonthlyRent: result.estimatedMonthlyRent,
+            rentRangeMin: result.rentRangeMin, rentRangeMax: result.rentRangeMax,
+            grossYield: result.grossYield, amortizationMonths: result.amortizationMonths,
+            score: result.score, riskLevel: result.riskLevel,
+            recommendation: result.recommendation,
+            buildingAgeRisk: result.buildingAgeRisk,
+            unitCountAdvantage: result.unitCountAdvantage,
+            summary: result.summary
+          };
+
+          if (!result.salePrice || result.salePrice < 10000) {
+            finishLastStep('error'); continue;
+          }
 
           setProperties(ps => [...ps, { id: Date.now() + i, url: listing.url, ...detail, analysis }]);
           finishLastStep('done');
-        } catch (e) { finishLastStep('error'); addStep('CATCH: ' + e.message, 'error'); }
-        await new Promise(r => setTimeout(r, 200));
+        } catch (e) { finishLastStep('error'); addStep('HATA: ' + e.message.substring(0,100), 'error'); }
+        await new Promise(r => setTimeout(r, 4000));
       }
       addStep('Tüm ilanlar analiz edildi.', 'done');
     } catch (e) {
