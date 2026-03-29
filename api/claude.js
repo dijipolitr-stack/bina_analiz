@@ -19,32 +19,45 @@ export default async function handler(req) {
   if (!apiKey) {
     return new Response(JSON.stringify({ error: { message: 'API anahtarı sunucuda tanımlı değil.' } }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
   }
 
-  const body = await req.text();
-  const parsed = JSON.parse(body);
-  const hasWebSearch = JSON.stringify(parsed.tools || []).includes('web_search');
+  try {
+    const body = await req.text();
+    const parsed = JSON.parse(body);
+    const hasWebSearch = JSON.stringify(parsed.tools || []).includes('web_search');
 
-  const upstream = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      ...(hasWebSearch ? { 'anthropic-beta': 'web-search-2025-03-05' } : {}),
-    },
-    body,
-  });
+    const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        ...(hasWebSearch ? { 'anthropic-beta': 'web-search-2025-03-05' } : {}),
+      },
+      body,
+    });
 
-  const data = await upstream.text();
+    const text = await upstream.text();
 
-  return new Response(data, {
-    status: upstream.status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-    },
-  });
+    // Upstream'den JSON gelmediyse wrap et
+    let finalBody;
+    try {
+      JSON.parse(text);
+      finalBody = text;
+    } catch {
+      finalBody = JSON.stringify({ error: { message: 'Upstream hata: ' + text.substring(0, 300) } });
+    }
+
+    return new Response(finalBody, {
+      status: upstream.status,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: { message: 'Proxy hatası: ' + e.message } }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    });
+  }
 }
