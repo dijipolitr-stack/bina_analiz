@@ -196,7 +196,7 @@ export default function App() {
 
           setProperties(ps => [...ps, { id: Date.now() + i, url: listing.url, ...detail, analysis }]);
           finishLastStep('done');
-        } catch { finishLastStep('error'); }
+        } catch (e) { finishLastStep('error'); addStep('CATCH: ' + e.message, 'error'); }
         await new Promise(r => setTimeout(r, 200));
       }
       addStep('Tüm ilanlar analiz edildi.', 'done');
