@@ -27,9 +27,21 @@ function extractListings(src, type) {
 
     // m²
     let sqm = null;
-    for (const p of [/data-m2="(\d+)"/, /"m2":(\d+)/, /(\d+)\s*m²/, /(\d+)\s*m2/i]) {
+    const sqmPatterns = [
+      /data-m2="(\d+)"/,
+      /"m2":(\d+)/,
+      /"netM2":(\d+)/,
+      /"grossM2":(\d+)/,
+      /netM2[^\d]*(\d+)/,
+      /m2Value[^\d]*(\d+)/,
+      /(\d+)\s*m²/,
+      /(\d+)\s*m2/i,
+      /"area":(\d+)/,
+      /data-area="(\d+)"/,
+    ];
+    for (const p of sqmPatterns) {
       const m = slice.match(p);
-      if (m) { sqm = parseInt(m[1]); if (sqm > 5 && sqm < 50000) break; else sqm = null; }
+      if (m) { const v = parseInt(m[1]); if (v > 10 && v < 100000) { sqm = v; break; } }
     }
 
     // Date
