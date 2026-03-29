@@ -157,7 +157,14 @@ export default function App() {
     setError(''); setRunning(true); setSteps([]); setProperties([]);
     try {
       addStep(`Sahibinden.com'da "${criteria.location}" ticari satılık bina aranıyor…`);
-      const searchPrompt = `Sahibinden.com'da aşağıdaki kriterlere uyan ticari satılık bina ilanlarını bul. Web arama aracını kullan.
+      const searchPrompt = `sahibinden.com web sitesinde "${criteria.location}" bölgesinde satılık ticari bina ilanlarını ara. 
+Arama yaparken "sahibinden.com satılık ${criteria.type === 'Tümü' ? 'ticari bina' : criteria.type} ${criteria.location}" gibi terimler kullan.
+${criteria.minPrice ? `Minimum fiyat ${criteria.minPrice} TL.` : ''}
+${criteria.maxPrice ? `Maximum fiyat ${criteria.maxPrice} TL.` : ''}
+Bulduğun gerçek sahibinden.com ilan URL'lerini listele.
+SADECE JSON formatında yanıt ver, başka hiçbir şey yazma:
+{"listings":[{"url":"https://www.sahibinden.com/ilan/satilik-...","title":"ilan başlığı"}]}
+En az ${criteria.count} ilan bul.`;
 
 Arama Kriterleri:
 - Konum: ${criteria.location}
