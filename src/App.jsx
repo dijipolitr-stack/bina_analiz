@@ -156,17 +156,25 @@ export default function App() {
     if (!criteria.location.trim()) { setError('Lütfen konum girin.'); return; }
     setError(''); setRunning(true); setSteps([]); setProperties([]);
     try {
-      addStep(`Sahibinden.com'da "${criteria.location}" ticari satılık bina aranıyor…`);
-      const binaType = criteria.type === 'Tümü' ? 'ticari bina' : criteria.type;
-      const searchPrompt = 'sahibinden.com sitesinde su kriterlere uyan satilik ticari bina ilanlarini bul: Konum: ' + criteria.location + ', Tip: ' + binaType + (criteria.minPrice ? ', Min fiyat: ' + criteria.minPrice + ' TL' : '') + (criteria.maxPrice ? ', Max fiyat: ' + criteria.maxPrice + ' TL' : '') + '. Web aramasi yap: "sahibinden satilik ' + binaType + ' ' + criteria.location + '". Gercek sahibinden.com ilan URL lerini bul. Sadece JSON don, baska hicbir sey yazma: {"listings":[{"url":"https://www.sahibinden.com/ilan/satilik-xxx","title":"baslik"}]}. En az ' + criteria.count + ' ilan bul.';
+      addStep('Sahibinden.com arama sayfasi olusturuluyor...');
+      const loc = criteria.location.toLowerCase()
+        .replace(/\s*,\s*/g, '-').replace(/\s+/g, '-')
+        .replace(/[çÇ]/g, 'c').replace(/[ğĞ]/g, 'g').replace(/[ıİ]/g, 'i')
+        .replace(/[öÖ]/g, 'o').replace(/[şŞ]/g, 's').replace(/[üÜ]/g, 'u');
+      const sahibindenUrl = 'https://www.sahibinden.com/satilik-isyeri/' + loc +
+        (criteria.minPrice ? '?price_min=' + criteria.minPrice : '') +
+        (criteria.maxPrice ? (criteria.minPrice ? '&' : '?') + 'price_max=' + criteria.maxPrice : '');
 
-      const searchResult = await callClaude([{ role: 'user', content: searchPrompt }], true);
-      addStep('Ham yanit: ' + searchResult.substring(0, 200));
+      addStep('Sayfa okunuyor: ' + sahibindenUrl);
+      const fetchPrompt = 'Su sahibinden.com sayfasini ac ve tum satilik ticari bina ilanlarini listele: ' + sahibindenUrl + '. Sayfadaki her ilanin URL si https://www.sahibinden.com/ilan/... formatinda olacak. Sadece JSON don: {"listings":[{"url":"https://www.sahibinden.com/ilan/satilik-isyeri-xxx","title":"baslik","priceHint":0}]}. En az ' + criteria.count + ' ilan bul.';
+
+      const searchResult = await callClaude([{ role: 'user', content: fetchPrompt }], true);
+      addStep('Yanit: ' + searchResult.substring(0, 150) + '...');
       const searchJson = searchResult.match(/\{[\s\S]*\}/);
-      if (!searchJson) throw new Error('JSON yok. Yanit: ' + searchResult.substring(0, 300));
+      if (!searchJson) throw new Error('JSON bulunamadi: ' + searchResult.substring(0, 300));
       const parsedSearch = JSON.parse(searchJson[0]);
       const listings = parsedSearch.listings || parsedSearch.ilanlar || parsedSearch.results || [];
-      if (!listings.length) throw new Error('Bos liste. JSON: ' + JSON.stringify(parsedSearch).substring(0, 200));
+      if (!listings.length) throw new Error('Liste bos: ' + JSON.stringify(parsedSearch).substring(0, 200));
 
       finishLastStep('done');
       addStep(`${listings.length} ilan bulundu. Detaylar okunuyor…`);
