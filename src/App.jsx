@@ -185,9 +185,9 @@ export default function App() {
         try {
           const detailText = await callClaude([{ role: 'user', content: `Şu sahibinden.com ilanına git ve tüm bilgileri çıkar: ${listing.url}\nSADECE JSON:\n{"title":"","salePrice":0,"district":"","location":"","type":"","buildYear":null,"unitCount":null,"sqm":null,"extraFeatures":[]}` }], true);
           const dj = detailText.match(/\{[\s\S]*\}/);
-          if (!dj) { finishLastStep('error'); continue; }
+          if (!dj) { finishLastStep('error: JSON yok. Yanit: ' + detailText.substring(0,100)); continue; }
           const detail = JSON.parse(dj[0]);
-          if (!detail.salePrice || detail.salePrice < 10000) { finishLastStep('error'); continue; }
+          if (!detail.salePrice || detail.salePrice < 10000) { finishLastStep('error: Fiyat yok. ' + JSON.stringify(detail).substring(0,100)); continue; }
 
           const buildingAge = detail.buildYear ? new Date().getFullYear() - detail.buildYear : null;
           const analysisText = await callClaude([{ role: 'user', content: `Sen bir Türk gayrimenkul yatırım analistsin.\nBina: ${detail.type} · ${detail.district}${detail.location ? ', ' + detail.location : ''} · ${new Intl.NumberFormat('tr-TR').format(detail.salePrice)} TL · Yapı: ${detail.buildYear || '?'}${buildingAge ? ` (${buildingAge} yaş)` : ''} · Bölüm: ${detail.unitCount || '?'} · Alan: ${detail.sqm ? detail.sqm + ' m²' : '?'}\nSADECE JSON:\n{"estimatedMonthlyRent":0,"rentRangeMin":0,"rentRangeMax":0,"grossYield":0,"amortizationMonths":0,"score":0,"riskLevel":"","recommendation":"","buildingAgeRisk":"","unitCountAdvantage":"","summary":""}` }]);
